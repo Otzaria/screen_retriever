@@ -64,8 +64,7 @@ void main() {
     await platform.events.close();
   });
 
-  test('adding the same listener twice notifies it once and removes it once',
-      () async {
+  test('duplicate listeners receive one event', () async {
     final received = <String>[];
     final listener = _CallbackListener(received.add);
 
@@ -83,7 +82,9 @@ void main() {
   test('a removed listener is skipped during the current event', () async {
     final received = <String>[];
     late _CallbackListener second;
-    final first = _CallbackListener((_) => screenRetriever.removeListener(second));
+    final first = _CallbackListener(
+      (_) => screenRetriever.removeListener(second),
+    );
     second = _CallbackListener(received.add);
 
     register(first);
