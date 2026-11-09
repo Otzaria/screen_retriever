@@ -72,8 +72,7 @@ void main() {
     expect(platform.primaryReads, 2);
   });
 
-  testWidgets('pending results are ignored after the page is disposed',
-      (tester) async {
+  testWidgets('ignores late results after disposal', (tester) async {
     platform.pendingPrimary = Completer<Display>();
     await tester.pumpWidget(const MyApp());
     await tester.pump();
@@ -87,8 +86,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('temporary native failures are reported without crashing',
-      (tester) async {
+  testWidgets('reports temporary display failures', (tester) async {
     platform.fail = true;
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
