@@ -20,3 +20,5 @@ export 'package:nativeapi/nativeapi.dart'
         ListenerId;
 export 'package:nativeapi_flutter/nativeapi_flutter.dart'
     show NativeSizeToSize, PointToOffset, RectangleToRect;
+
+export 'src/display_work_areas.dart' show DisplayWorkArea, getDisplayWorkAreas;
