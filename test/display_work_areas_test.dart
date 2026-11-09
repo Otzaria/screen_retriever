@@ -34,8 +34,7 @@ class _FakeDisplay extends Fake implements nativeapi.Display {
 }
 
 void main() {
-  test('snapshots mixed-DPI work areas without other native property reads',
-      () {
+  test('snapshots only work areas and scale factors', () {
     final left = _FakeDisplay(
       const nativeapi.Rectangle(
         x: -1279.5,
