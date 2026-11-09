@@ -6,13 +6,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:screen_retriever/legacy.dart';
 import 'package:screen_retriever_example/main.dart';
 
-class _TestPlatform
-    with MockPlatformInterfaceMixin
-    implements ScreenRetrieverPlatform {
+class _TestPlatform extends ScreenRetrieverPlatform {
   final events = StreamController<Map<Object?, Object?>>.broadcast();
 
   final displays = <Display>[
@@ -33,7 +30,8 @@ class _TestPlatform
   Future<Display> getPrimaryDisplay() {
     primaryReads++;
     if (fail) return Future.error(StateError('temporarily unavailable'));
-    if (pendingPrimary case final completer?) return completer.future;
+    final completer = pendingPrimary;
+    if (completer != null) return completer.future;
     return Future.value(displays.first);
   }
 
