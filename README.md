@@ -109,6 +109,20 @@ Positions and sizes are logical pixels, with the origin at the top left of the p
 display. nativeapi's `Point`, `Size` and `Rectangle` are not exported, because Flutter
 has its own `Size`: `toOffset()`, `toSize()` and `toRect()` turn them into Flutter's.
 
+For hot paths such as window-restoration checks that need only display work
+areas and scale factors, use `getDisplayWorkAreas()` instead of requesting
+complete native display objects:
+
+```dart
+for (final area in getDisplayWorkAreas()) {
+  print('${area.bounds} at ${area.scaleFactor}x');
+}
+```
+
+This performs only two native property reads per display (work area and scale
+factor), avoids allocating monitor-name strings, and disposes the native handles
+before returning. The returned `DisplayWorkArea` values remain safe to keep.
+
 > The [example app](./example) of this plugin covers the 0.2.x compatible API.
 
 #### Upgrading from 0.2.x
