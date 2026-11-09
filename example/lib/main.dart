@@ -80,11 +80,12 @@ class _HomePageState extends State<HomePage> with ScreenListener {
 
   @override
   void onScreenEvent(String eventName) {
-    BotToast.showText(text: 'onScreenEvent: $eventName');
-    // Hot-plugging may emit added, removed and changed events in a burst.
-    // Coalesce them instead of starting overlapping native reads.
+    // Invalidate any already-running snapshot immediately, then coalesce
+    // bursts of hot-plug events into one set of native reads and one toast.
+    _refreshGeneration++;
     _refreshTimer?.cancel();
     _refreshTimer = Timer(const Duration(milliseconds: 100), () {
+      BotToast.showText(text: 'onScreenEvent: $eventName');
       unawaited(_getDisplays());
     });
   }
@@ -121,6 +122,42 @@ class _HomePageState extends State<HomePage> with ScreenListener {
     }
   }
 
+  Future<void> _handleGetPrimaryDisplay() async {
+    final generation = ++_refreshGeneration;
+    try {
+      final primary = await screenRetriever.getPrimaryDisplay();
+      if (!mounted || generation != _refreshGeneration) return;
+      setState(() {
+        _primaryDisplay = primary;
+        _loadError = null;
+      });
+      BotToast.showText(text: 'primaryDisplay: ${primary.toJson()}');
+    } catch (error) {
+      if (mounted && generation == _refreshGeneration) {
+        setState(() => _loadError = error.toString());
+      }
+    }
+  }
+
+  Future<void> _handleGetAllDisplays() async {
+    final generation = ++_refreshGeneration;
+    try {
+      final displays = await screenRetriever.getAllDisplays();
+      if (!mounted || generation != _refreshGeneration) return;
+      setState(() {
+        _displayList = displays;
+        _loadError = null;
+      });
+      BotToast.showText(
+        text: 'allDisplays:\n${displays.map((e) => e.toJson()).join('\n')}',
+      );
+    } catch (error) {
+      if (mounted && generation == _refreshGeneration) {
+        setState(() => _loadError = error.toString());
+      }
+    }
+  }
+
   Widget _buildPrimaryDisplay(BuildContext context) {
     if (_primaryDisplay != null) {
       return _ListSection(
@@ -154,27 +191,13 @@ class _HomePageState extends State<HomePage> with ScreenListener {
         Card(
           child: ListTile(
             title: const Text('getPrimaryDisplay'),
-            onTap: () async {
-              await _getDisplays();
-              final primary = _primaryDisplay;
-              if (mounted && primary != null) {
-                BotToast.showText(text: 'primaryDisplay: ${primary.toJson()}');
-              }
-            },
+            onTap: _handleGetPrimaryDisplay,
           ),
         ),
         Card(
           child: ListTile(
             title: const Text('getAllDisplays'),
-            onTap: () async {
-              await _getDisplays();
-              if (mounted) {
-                BotToast.showText(
-                  text:
-                      'allDisplays:\n${_displayList.map((e) => e.toJson()).join('\n')}',
-                );
-              }
-            },
+            onTap: _handleGetAllDisplays,
           ),
         ),
       ],
