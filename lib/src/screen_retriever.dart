@@ -25,10 +25,26 @@ class ScreenRetriever {
   StreamSubscription<Map<Object?, Object?>>? _subscription;
 
   void _handleScreenEvent(Map<Object?, Object?> event) {
-    final type = event['type'] as String?;
-    if (type == null) return;
+    final type = event['type'];
+    if (type is! String) return;
+    // Callbacks may remove other listeners. Do not invoke one that has already
+    // been unregistered during this notification.
     for (final listener in List<ScreenListener>.of(_listeners)) {
-      listener.onScreenEvent(type);
+      if (!_listeners.contains(listener)) continue;
+      try {
+        listener.onScreenEvent(type);
+      } catch (error, stackTrace) {
+        // One misbehaving consumer must not prevent other windows/widgets from
+        // hearing about a monitor change.
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'screen_retriever',
+            context: ErrorDescription('while notifying a ScreenListener'),
+          ),
+        );
+      }
     }
   }
 
@@ -37,10 +53,20 @@ class ScreenRetriever {
   }
 
   void addListener(ScreenListener listener) {
+    // Duplicate registration otherwise delivers every event twice, and can
+    // leave an unexpected listener behind after a single removeListener().
+    if (_listeners.contains(listener)) return;
     _listeners.add(listener);
-    _subscription ??= _platform.onScreenEventReceiver.listen(
-      _handleScreenEvent,
-    );
+    try {
+      _subscription ??= _platform.onScreenEventReceiver.listen(
+        _handleScreenEvent,
+      );
+    } catch (_) {
+      // The platform's getter may throw (e.g. a custom platform that does not
+      // implement it). Do not retain a phantom listener.
+      _listeners.remove(listener);
+      rethrow;
+    }
   }
 
   void removeListener(ScreenListener listener) {
