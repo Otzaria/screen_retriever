@@ -2,7 +2,6 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,17 +58,23 @@ void main() {
     expect(platform.primaryReads, 1);
   });
 
-  testWidgets('monitor event bursts trigger only one refresh', (tester) async {
+  testWidgets('a monitor event refreshes the displays', (tester) async {
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
+    platform.displays.add(
+      const Display(id: '2', name: 'Second screen', size: Size(1280, 720)),
+    );
     platform.events.add({'type': 'display-added'});
-    platform.events.add({'type': 'display-changed'});
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 120));
     await tester.pump();
 
     expect(platform.primaryReads, 2);
+    expect(find.text('Second screen'), findsOneWidget);
+
+    // Let the event toast expire so no timer is left pending.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('ignores late results after disposal', (tester) async {

@@ -59,8 +59,6 @@ class _HomePageState extends State<HomePage> with ScreenListener {
   Display? _primaryDisplay;
   List<Display> _displayList = [];
   String? _loadError;
-  Timer? _refreshTimer;
-  int _refreshGeneration = 0;
 
   @override
   void initState() {
@@ -71,79 +69,63 @@ class _HomePageState extends State<HomePage> with ScreenListener {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
-    // Ignore results from any in-flight native query after widget teardown.
-    _refreshGeneration++;
     screenRetriever.removeListener(this);
     super.dispose();
   }
 
   @override
   void onScreenEvent(String eventName) {
-    // Invalidate any already-running snapshot immediately, then coalesce
-    // bursts of hot-plug events into one set of native reads and one toast.
-    _refreshGeneration++;
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer(const Duration(milliseconds: 100), () {
-      BotToast.showText(text: 'onScreenEvent: $eventName');
-      unawaited(_getDisplays());
-    });
+    BotToast.showText(text: 'onScreenEvent: $eventName');
+    unawaited(_getDisplays());
   }
 
   Future<void> _getDisplays() async {
-    final generation = ++_refreshGeneration;
+    Display? primary;
+    List<Display> displays = [];
+    String? error;
     try {
-      final primary = await screenRetriever.getPrimaryDisplay();
-      final displays = await screenRetriever.getAllDisplays();
-      if (!mounted || generation != _refreshGeneration) return;
-      setState(() {
-        _primaryDisplay = primary;
-        _displayList = displays;
-        _loadError = null;
-      });
-    } catch (error) {
-      // A primary display can temporarily disappear while unplugging a
-      // monitor. Keep the example usable and show the failure.
-      if (!mounted || generation != _refreshGeneration) return;
-      setState(() {
-        _primaryDisplay = null;
-        _displayList = [];
-        _loadError = error.toString();
-      });
+      primary = await screenRetriever.getPrimaryDisplay();
+      displays = await screenRetriever.getAllDisplays();
+    } catch (e) {
+      // The primary display can briefly be missing while a monitor is unplugged.
+      error = e.toString();
     }
+    if (!mounted) return;
+    setState(() {
+      _primaryDisplay = primary;
+      _displayList = displays;
+      _loadError = error;
+    });
   }
 
   Future<void> _handleGetCursorScreenPoint() async {
     try {
       final point = await screenRetriever.getCursorScreenPoint();
-      if (mounted) BotToast.showText(text: 'cursorScreenPoint: $point');
+      BotToast.showText(text: 'cursorScreenPoint: $point');
     } catch (error) {
-      if (mounted) BotToast.showText(text: 'Cursor unavailable: $error');
+      BotToast.showText(text: 'getCursorScreenPoint failed: $error');
     }
   }
 
   Future<void> _handleGetPrimaryDisplay() async {
-    final generation = ++_refreshGeneration;
     try {
       final primary = await screenRetriever.getPrimaryDisplay();
-      if (!mounted || generation != _refreshGeneration) return;
+      if (!mounted) return;
       setState(() {
         _primaryDisplay = primary;
         _loadError = null;
       });
       BotToast.showText(text: 'primaryDisplay: ${primary.toJson()}');
     } catch (error) {
-      if (mounted && generation == _refreshGeneration) {
-        setState(() => _loadError = error.toString());
-      }
+      if (!mounted) return;
+      setState(() => _loadError = error.toString());
     }
   }
 
   Future<void> _handleGetAllDisplays() async {
-    final generation = ++_refreshGeneration;
     try {
       final displays = await screenRetriever.getAllDisplays();
-      if (!mounted || generation != _refreshGeneration) return;
+      if (!mounted) return;
       setState(() {
         _displayList = displays;
         _loadError = null;
@@ -152,9 +134,8 @@ class _HomePageState extends State<HomePage> with ScreenListener {
         text: 'allDisplays:\n${displays.map((e) => e.toJson()).join('\n')}',
       );
     } catch (error) {
-      if (mounted && generation == _refreshGeneration) {
-        setState(() => _loadError = error.toString());
-      }
+      if (!mounted) return;
+      setState(() => _loadError = error.toString());
     }
   }
 
@@ -208,8 +189,7 @@ class _HomePageState extends State<HomePage> with ScreenListener {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        if (_loadError != null)
-          Text('Could not read displays: $_loadError'),
+        if (_loadError != null) Text('Could not read displays: $_loadError'),
         _buildPrimaryDisplay(context),
         _buildAllDisplays(context),
         _buildMethods(context),
