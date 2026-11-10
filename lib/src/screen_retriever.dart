@@ -62,8 +62,8 @@ class ScreenRetriever {
         _handleScreenEvent,
       );
     } catch (_) {
-      // A platform may fail while creating its stream (e.g. the native
-      // backend is unavailable). Do not retain a phantom listener.
+      // The platform's getter may throw (e.g. a custom platform that does not
+      // implement it). Do not retain a phantom listener.
       _listeners.remove(listener);
       rethrow;
     }

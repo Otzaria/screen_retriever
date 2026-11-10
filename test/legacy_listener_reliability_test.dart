@@ -2,7 +2,6 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,6 +60,10 @@ void main() {
     for (final listener in registered) {
       screenRetriever.removeListener(listener);
     }
+    // screenRetriever is a singleton: a leftover subscription would keep the
+    // next test from subscribing to its own platform.
+    expect(screenRetriever.hasListeners, isFalse);
+    expect(platform.events.hasListener, isFalse);
     await platform.events.close();
   });
 
@@ -80,11 +83,13 @@ void main() {
   });
 
   test('a removed listener is skipped during the current event', () async {
+    final firstReceived = <String>[];
     final received = <String>[];
     late _CallbackListener second;
-    final first = _CallbackListener(
-      (_) => screenRetriever.removeListener(second),
-    );
+    final first = _CallbackListener((event) {
+      firstReceived.add(event);
+      screenRetriever.removeListener(second);
+    });
     second = _CallbackListener(received.add);
 
     register(first);
@@ -92,6 +97,7 @@ void main() {
     platform.events.add({'type': 'display-removed'});
     await Future<void>.delayed(Duration.zero);
 
+    expect(firstReceived, ['display-removed']);
     expect(received, isEmpty);
   });
 
@@ -121,9 +127,10 @@ void main() {
 
     platform.events.add({'type': 1});
     platform.events.add({'type': null});
+    platform.events.add({'type': 'display-added'});
     await Future<void>.delayed(Duration.zero);
 
-    expect(received, isEmpty);
+    expect(received, ['display-added']);
   });
 
   test('a failed subscription leaves no phantom listener', () {
